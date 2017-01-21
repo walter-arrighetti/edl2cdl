@@ -15,18 +15,18 @@
 ##  in IDs within the CCC file (or as filename  ##
 ##  for individual CDLs/CCs within a folder.    ##
 ##______________________________________________##
-##  Copyright (C) 2017 Walter Arrighetti, PhD   ##
-##  All Rights Reserved.                        ##
+##  Copyright (C) 2017 Frame by Frame           ##
+##  coding by: Walter Arrighetti, PhD, CISSP    ##
 ##                                              ##
 ##################################################
 #!/usr/bin/env python 
-_version = "0.6"
+_version = "1.0"
 import os
 import re
 import sys
 
 print "EDL-to-CDL Conversion Utility version %s"%_version
-print "Copyright (C) 2017 Walter Arrighetti PhD.\n"
+print "Copyright (C) 2017 Walter Arrighetti PhD, Frame by Frame Italia.\n"
 
 useCCC = "CDL"
 if len(sys.argv)==2 and sys.argv[1].lower() not in ["--cdl","--cc","--ccc"]:
@@ -84,10 +84,11 @@ else:
 	print "            Color correction IDs (ccid) are assinged as the EDL event tapenames"
 	sys.exit(1)
 
-cam1re = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>[A-Z][0-9]{3}[_]C[0-9]{3})[_]")
-cam2re = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>[A-Z][0-9]{3}C[0-9]{3})[_]")
+camre = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+.*(?P<name>[A-Z][0-9]{3}[_]?C[0-9]{3})")
+camre0 = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+.{63}")
+camre1 = re.compile(r"[*].*(?P<name>[A-Z][0-9]{3}[_]?C[0-9]{3})")
 input_desc, viewing_desc = None, "EDL2CDL script by Walter Arrighetti"
-tapere = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>.{8,32})")
+tapere = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>[A-Za-z0-9-_,.]|\s{8,32})")
 cdl1re = re.compile(r"[*]\sASC[_]SOP\s+[(]\s?(?P<sR>[-]?\d+[.]\d{4})\s+(?P<sG>[-]?\d+[.]\d{4})\s+(?P<sB>[-]?\d+[.]\d{4})\s?[)]\s?[(]\s?(?P<oR>[-]?\d+[.]\d{4})\s+(?P<oG>[-]?\d+[.]\d{4})\s+(?P<oB>[-]?\d+[.]\d{4})\s?[)]\s?[(]\s?(?P<pR>[-]?\d+[.]\d{4})\s+(?P<pG>[-]?\d+[.]\d{4})\s+(?P<pB>[-]?\d+[.]\d{4})\s?[)]\s?")
 cdl2re = re.compile(r"[*]\sASC[_]SAT\s+(?P<sat>\d+[.]\d{4})")
 
@@ -95,9 +96,14 @@ ln = 0
 
 CCC = []
 
-def writeCDL(Id, SOPnode, SATnode):
+def writeCDL(CCCid, SOPnode, SATnode):
+	for n in range(len(CCC)):
+		id = CCC[n]['id']
+		if (len(CCCid)==len(id) and CCCid[:-4].lower()==id[:-4].lower()) or (len(CCCid)==len(id)+4 and CCCid[:-4].lower()==id.lower()):
+			if SOPnode==(CCC[n]['slope'],CCC[n]['offset'],CCC[n]['power']) and SATnode==CCC[n]['SAT']:
+				return
 	CCC.append( {
-		'id': Id,
+		'id': CCCid,
 		'slope': SOPnode[0],
 		'offset':SOPnode[1],
 		'power': SOPnode[2],
@@ -110,17 +116,24 @@ if (useCCC in ["CDL","CC"]) and ((not os.path.exists(outpath)) or (not os.path.i
 		print " * ERROR!: Unable to create output folder \"%s\"."%outpath
 		sys.exit(2)
 tapename, CDLevent, thisCDL, thisSAT = None, False, None, 0
-for line in open(infile,"r"):
-	if cam1re.match(line):
-		CDLevent, L = True, cam1re.match(line)
+try:	EDL = open(infile,"r").readlines()
+except:
+		print " * ERROR!: Unable to read input EDL file \"%s\"."%infile
+		sys.exit(3)
+for n in range(len(EDL)):
+	line = EDL[n].strip()
+	if camre.match(line):
+		CDLevent, L = True, camre.match(line)
 		tapename = L.group("name")
 		if CDLevent and thisCDL:
 			writeCDL(tapename,thisCDL,thisSAT)
 			tapename, CDLevent, thisCDL, thisSAT = None, False, None, 0
 		thisCDL, thisSAT = None, 0
 		continue
-	if cam2re.match(line):
-		CDLevent, L = True, cam2re.match(line)
+	elif camre0.match(line) and n<len(EDL)-1 and camre1.match(EDL[n+1]):
+		n += 1
+		line = EDL[n]
+		CDLevent, L = True, camre1.match(line)
 		tapename = L.group("name")
 		if CDLevent and thisCDL:
 			writeCDL(tapename,thisCDL,thisSAT)
@@ -167,7 +180,7 @@ if useCCC=="CCC":
 		sys.exit(3)
 	buf = []
 	buf.append('<?xml version="1.0" encoding="UTF-8"?>')
-	buf.append('<ColorCorrectionCollection xmlns="urn:ASC:CDL:v1.2">')
+	buf.append('<ColorCorrectionCollection xmlns="urn:ASC:CDL:v1.01">')
 	if input_desc:	buf.append('\t<InputDescription>%s</InputDescription>'%input_desc)
 	if viewing_desc:	buf.append('\t<ViewingDescription>%s</ViewingDescription>'%viewing_desc)
 	for n in range(len(CCC)):
@@ -196,14 +209,12 @@ elif useCCC in ["CC","CDL"]:
 		buf = []
 		if useCCC=="CDL":
 			buf.append('<?xml version="1.0" encoding="UTF-8"?>')
-			buf.append('<ColorDecisionList xmlns="urn:ASC:CDL:v1.2">')
-			if input_desc:	buf.append('\t<InputDescription>%s</InputDescription>'%input_desc)
-			if viewing_desc:	buf.append('\t<ViewingDescription>%s</ViewingDescription>'%viewing_desc)
+			buf.append('<ColorDecisionList xmlns="urn:ASC:CDL:v1.01">')
 			tab = '\t'
 		else:	tab = ''
 		buf.append(tab+'<ColorCorrection id="%s">'%CCC[n]['id'])
-			if useCCC=="CC" and input_desc:	buf.append('\t<InputDescription>%s</InputDescription>'%input_desc)
-			if useCCC=="CC" and viewing_desc:	buf.append('\t<ViewingDescription>%s</ViewingDescription>'%viewing_desc)
+		if input_desc:	buf.append(tab+'\t<InputDescription>%s</InputDescription>'%input_desc)
+		if viewing_desc:	buf.append(tab+'\t<ViewingDescription>%s</ViewingDescription>'%viewing_desc)
 		buf.append(tab+'\t<SOPNode>')
 		buf.append(tab+'\t\t<Slope>%.05f %.05f %.05f</Slope>'%CCC[n]['slope'])
 		buf.append(tab+'\t\t<Offset>%.05f %.05f %.05f</Offset>'%CCC[n]['offset'])
