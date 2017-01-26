@@ -15,12 +15,11 @@
 ##  in IDs within the CCC file (or as filename  ##
 ##  for individual CDLs/CCs within a folder.    ##
 ##______________________________________________##
-##  Copyright (C) 2017 Frame by Frame           ##
-##  coding by: Walter Arrighetti, PhD, CISSP    ##
+##  Copyright (C) 2017 Walter Arrighetti, PhD   ##
 ##                                              ##
 ##################################################
 #!/usr/bin/env python 
-_version = "1.0"
+_version = "1.1"
 import os
 import re
 import sys
@@ -85,8 +84,8 @@ else:
 	sys.exit(1)
 
 camre = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+.*(?P<name>[A-Z][0-9]{3}[_]?C[0-9]{3})")
-camre0 = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+.{63}")
-camre1 = re.compile(r"[*].*(?P<name>[A-Z][0-9]{3}[_]?C[0-9]{3})")
+camre0 = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>.{63})")
+camre1 = re.compile(r"[*]\s(?P<name>.*)")
 input_desc, viewing_desc = None, "EDL2CDL script by Walter Arrighetti"
 tapere = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>[A-Za-z0-9-_,.]|\s{8,32})")
 cdl1re = re.compile(r"[*]\sASC[_]SOP\s+[(]\s?(?P<sR>[-]?\d+[.]\d{4})\s+(?P<sG>[-]?\d+[.]\d{4})\s+(?P<sB>[-]?\d+[.]\d{4})\s?[)]\s?[(]\s?(?P<oR>[-]?\d+[.]\d{4})\s+(?P<oG>[-]?\d+[.]\d{4})\s+(?P<oB>[-]?\d+[.]\d{4})\s?[)]\s?[(]\s?(?P<pR>[-]?\d+[.]\d{4})\s+(?P<pG>[-]?\d+[.]\d{4})\s+(?P<pB>[-]?\d+[.]\d{4})\s?[)]\s?")
@@ -94,14 +93,9 @@ cdl2re = re.compile(r"[*]\sASC[_]SAT\s+(?P<sat>\d+[.]\d{4})")
 
 ln = 0
 
-CCC = []
+CCC, IDs = [], []
 
 def writeCDL(CCCid, SOPnode, SATnode):
-	for n in range(len(CCC)):
-		id = CCC[n]['id']
-		if (len(CCCid)==len(id) and CCCid[:-4].lower()==id[:-4].lower()) or (len(CCCid)==len(id)+4 and CCCid[:-4].lower()==id.lower()):
-			if SOPnode==(CCC[n]['slope'],CCC[n]['offset'],CCC[n]['power']) and SATnode==CCC[n]['SAT']:
-				return
 	CCC.append( {
 		'id': CCCid,
 		'slope': SOPnode[0],
@@ -109,6 +103,7 @@ def writeCDL(CCCid, SOPnode, SATnode):
 		'power': SOPnode[2],
 		'SAT':   SATnode
 	} )
+	IDs.append(CCCid)
 
 if (useCCC in ["CDL","CC"]) and ((not os.path.exists(outpath)) or (not os.path.isdir(outpath))):
 	try:	os.mkdir(outpath)
@@ -124,42 +119,34 @@ for n in range(len(EDL)):
 	line = EDL[n].strip()
 	if camre.match(line):
 		CDLevent, L = True, camre.match(line)
-		tapename = L.group("name")
-		if CDLevent and thisCDL:
+		if thisCDL:
 			writeCDL(tapename,thisCDL,thisSAT)
-			tapename, CDLevent, thisCDL, thisSAT = None, False, None, 0
-		thisCDL, thisSAT = None, 0
-		continue
+			thisCDL, thisSAT = None, 0
+		tapename = L.group("name")
+		if tapename in IDs:	tapename, CDLevent = None, False
 	elif camre0.match(line) and n<len(EDL)-1 and camre1.match(EDL[n+1]):
 		n += 1
-		line = EDL[n]
-		CDLevent, L = True, camre1.match(line)
-		tapename = L.group("name")
-		if CDLevent and thisCDL:
+		line = line + camre1.match(EDL[n]).group("name")
+		L = camre.match(line)
+		if not L:
 			writeCDL(tapename,thisCDL,thisSAT)
-			tapename, CDLevent, thisCDL, thisSAT = None, False, None, 0
-		thisCDL, thisSAT = None, 0
-		continue
+			thisCDL, thisSAT = None, 0
+		else:	CDLevent = True
+		tapename = L.group("name")
+		if tapename in IDs:	tapename, CDLevent = None, False
+		if thisCDL:
+			thisCDL, thisSAT = None, 0
 	elif tapere.match(line):
 		CDLevent, L = True, tapere.match(line)
-		tapename = L.group("name")
-		if CDLevent and thisCDL:
+		if thisCDL:
 			writeCDL(tapename,thisCDL,thisSAT)
-			tapename, CDLevent, thisCDL, thisSAT = None, False, None, 0
-		continue
+			thisCDL, thisSAT = None, 0
+		tapename = L.group("name")
+		if tapename in IDs:	tapename, CDLevent = None, False
 	elif CDLevent and cdl1re.match(line):
-		ids = [cc['id'].lower() for cc in CCC]
-		if tapename.lower() in ids:
-			ids = [id for id in ids if re.match(tapename+r"-\d{3}",id)]
-			if not ids:	tapename = tapename+"-001"
-			else:
-				ids.sort()
-				tapename = tapename + "-%03d"%( int(ids[-1][-3:])+1 )
-		del ids
 		L = cdl1re.match(line)
 		thisCDL = ( tuple(map(float,(L.group("sR"),L.group("sG"),L.group("sB")))), tuple(map(float,(L.group("oR"),L.group("oG"),L.group("oB")))), tuple(map(float,(L.group("pR"),L.group("pG"),L.group("pB")))) ) 
 		thisSAT = 0
-		continue
 	elif CDLevent and thisCDL and cdl2re.match(line):
 		L = cdl2re.match(line)
 		thisSAT = float(L.group("sat"))
