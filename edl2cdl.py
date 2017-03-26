@@ -19,7 +19,7 @@
 ##                                              ##
 ##################################################
 #!/usr/bin/env python 
-_version = "1.1"
+_version = "1.2"
 import os
 import re
 import sys
@@ -88,8 +88,8 @@ camre0 = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>.{63})")
 camre1 = re.compile(r"[*]\s(?P<name>.*)")
 input_desc, viewing_desc = None, "EDL2CDL script by Walter Arrighetti"
 tapere = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>[A-Za-z0-9-_,.]|\s{8,32})")
-cdl1re = re.compile(r"[*]\sASC[_]SOP\s+[(]\s?(?P<sR>[-]?\d+[.]\d{4})\s+(?P<sG>[-]?\d+[.]\d{4})\s+(?P<sB>[-]?\d+[.]\d{4})\s?[)]\s?[(]\s?(?P<oR>[-]?\d+[.]\d{4})\s+(?P<oG>[-]?\d+[.]\d{4})\s+(?P<oB>[-]?\d+[.]\d{4})\s?[)]\s?[(]\s?(?P<pR>[-]?\d+[.]\d{4})\s+(?P<pG>[-]?\d+[.]\d{4})\s+(?P<pB>[-]?\d+[.]\d{4})\s?[)]\s?")
-cdl2re = re.compile(r"[*]\sASC[_]SAT\s+(?P<sat>\d+[.]\d{4})")
+cdl1re = re.compile(r"[*]\sASC[_]SOP\s+[(]\s?(?P<sR>[-]?\d+[.]\d{4,6})\s+(?P<sG>[-]?\d+[.]\d{4,6})\s+(?P<sB>[-]?\d+[.]\d{4,6})\s?[)]\s?[(]\s?(?P<oR>[-]?\d+[.]\d{4,6})\s+(?P<oG>[-]?\d+[.]\d{4,6})\s+(?P<oB>[-]?\d+[.]\d{4,6})\s?[)]\s?[(]\s?(?P<pR>[-]?\d+[.]\d{4,6})\s+(?P<pG>[-]?\d+[.]\d{4,6})\s+(?P<pB>[-]?\d+[.]\d{4,6})\s?[)]\s?")
+cdl2re = re.compile(r"[*]\sASC[_]SAT\s+(?P<sat>\d+[.]\d{4,6})")
 
 ln = 0
 
