@@ -138,11 +138,13 @@ for n in range(len(EDL)):
 			thisCDL, thisSAT = None, 0
 	elif tapere.match(line):
 		CDLevent, L = True, tapere.match(line)
+		tapename = L.group("name")
+		print(tapename)
 		if thisCDL:
 			writeCDL(tapename,thisCDL,thisSAT)
 			thisCDL, thisSAT = None, 0
-		tapename = L.group("name")
-		if tapename in IDs:	tapename, CDLevent = None, False
+		if tapename in IDs:
+			tapename, CDLevent = None, False
 	elif CDLevent and cdl1re.match(line):
 		L = cdl1re.match(line)
 		thisCDL = ( tuple(map(float,(L.group("sR"),L.group("sG"),L.group("sB")))), tuple(map(float,(L.group("oR"),L.group("oG"),L.group("oB")))), tuple(map(float,(L.group("pR"),L.group("pG"),L.group("pB")))) ) 
