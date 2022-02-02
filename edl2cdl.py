@@ -117,6 +117,7 @@ except:
 		sys.exit(3)
 for n in range(len(EDL)):
 	line = EDL[n].strip()
+	print("Processing %s" % line)
 	if camre.match(line):
 		CDLevent, L = True, camre.match(line)
 		if thisCDL:
