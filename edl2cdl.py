@@ -83,13 +83,13 @@ else:
 	print "            Color correction IDs (ccid) are assinged as the EDL event tapenames"
 	sys.exit(1)
 
-camre = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+.*(?P<name>[A-Z][0-9]{3}[_]?C[0-9]{3})")
-camre0 = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>.{63})")
-camre1 = re.compile(r"[*]\s(?P<name>.*)")
+camre = re.compile(r"[*]\s?FROM\sCLIP\sNAME:\s+.*(?P<name>[A-Z][0-9]{3}[_]?C[0-9]{3})")
+camre0 = re.compile(r"[*]\s?FROM\sCLIP\sNAME:\s+(?P<name>.{63})")
+camre1 = re.compile(r"[*]\s?(?P<name>.*)")
 input_desc, viewing_desc = None, "EDL2CDL script by Walter Arrighetti"
-tapere = re.compile(r"[*]\sFROM\sCLIP\sNAME:\s+(?P<name>[A-Za-z0-9-_,.]|\s{8,32})")
-cdl1re = re.compile(r"[*]\sASC[_]SOP\s+[(]\s?(?P<sR>[-]?\d+[.]\d{4,6})\s+(?P<sG>[-]?\d+[.]\d{4,6})\s+(?P<sB>[-]?\d+[.]\d{4,6})\s?[)]\s?[(]\s?(?P<oR>[-]?\d+[.]\d{4,6})\s+(?P<oG>[-]?\d+[.]\d{4,6})\s+(?P<oB>[-]?\d+[.]\d{4,6})\s?[)]\s?[(]\s?(?P<pR>[-]?\d+[.]\d{4,6})\s+(?P<pG>[-]?\d+[.]\d{4,6})\s+(?P<pB>[-]?\d+[.]\d{4,6})\s?[)]\s?")
-cdl2re = re.compile(r"[*]\sASC[_]SAT\s+(?P<sat>\d+[.]\d{4,6})")
+tapere = re.compile(r"[*]\s?FROM\sCLIP\sNAME:\s+(?P<name>(\d{3}_\d{4})|[A-Za-z0-9-_,.]|\s{8,32})")
+cdl1re = re.compile(r"[*]\s?ASC[_]SOP\s+[(]\s?(?P<sR>[-]?\d+[.]\d{4,6})\s+(?P<sG>[-]?\d+[.]\d{4,6})\s+(?P<sB>[-]?\d+[.]\d{4,6})\s?[)]\s?[(]\s?(?P<oR>[-]?\d+[.]\d{4,6})\s+(?P<oG>[-]?\d+[.]\d{4,6})\s+(?P<oB>[-]?\d+[.]\d{4,6})\s?[)]\s?[(]\s?(?P<pR>[-]?\d+[.]\d{4,6})\s+(?P<pG>[-]?\d+[.]\d{4,6})\s+(?P<pB>[-]?\d+[.]\d{4,6})\s?[)]\s?")
+cdl2re = re.compile(r"[*]\s?ASC[_]SAT\s+(?P<sat>\d+[.]\d{4,6})")
 
 ln = 0
 
@@ -117,6 +117,7 @@ except:
 		sys.exit(3)
 for n in range(len(EDL)):
 	line = EDL[n].strip()
+	print("Processing %s" % line)
 	if camre.match(line):
 		CDLevent, L = True, camre.match(line)
 		if thisCDL:
@@ -138,11 +139,13 @@ for n in range(len(EDL)):
 			thisCDL, thisSAT = None, 0
 	elif tapere.match(line):
 		CDLevent, L = True, tapere.match(line)
+		tapename = L.group("name")
+		print(tapename)
 		if thisCDL:
 			writeCDL(tapename,thisCDL,thisSAT)
 			thisCDL, thisSAT = None, 0
-		tapename = L.group("name")
-		if tapename in IDs:	tapename, CDLevent = None, False
+		if tapename in IDs:
+			tapename, CDLevent = None, False
 	elif CDLevent and cdl1re.match(line):
 		L = cdl1re.match(line)
 		thisCDL = ( tuple(map(float,(L.group("sR"),L.group("sG"),L.group("sB")))), tuple(map(float,(L.group("oR"),L.group("oG"),L.group("oB")))), tuple(map(float,(L.group("pR"),L.group("pG"),L.group("pB")))) ) 
